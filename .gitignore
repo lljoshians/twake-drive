@@ -46,3 +46,5 @@ konnector-dev-config.json
 
 # E2E test artifacts
 e2e/.auth-state.json
+playwright-report/
+test-results/

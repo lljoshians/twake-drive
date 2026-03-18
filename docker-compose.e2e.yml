@@ -1,0 +1,25 @@
+services:
+  couchdb:
+    image: couchdb:3
+    environment:
+      COUCHDB_USER: admin
+      COUCHDB_PASSWORD: password
+    ports:
+      - "5984:5984"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5984/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  cozystack:
+    image: cozy/cozy-stack
+    depends_on:
+      couchdb:
+        condition: service_healthy
+    volumes:
+      - ./build:/app/drive
+      - ./e2e/cozy.yml:/etc/cozy/cozy.yml
+    ports:
+      - "8080:8080"
+      - "6060:6060"

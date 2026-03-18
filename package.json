@@ -13,6 +13,7 @@
     "lint:styles": "stylint src --config ./node_modules/stylus-config-cozy-app/.stylintrc",
     "lint:js": "eslint '{src,test}/**/*.{js,jsx,ts,tsx}'",
     "test": "env NODE_ENV='test' jest",
+    "e2e": "playwright test --config e2e/playwright.config.ts",
     "service": "yarn cozy-konnector-dev -m ./manifest.webapp"
   },
   "repository": {
@@ -39,6 +40,7 @@
   },
   "homepage": "https://github.com/cozy/cozy-drive#readme",
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@rsbuild/core": "^1.5.15",
     "@swc-contrib/mut-cjs-exports": "^14.7.0",
     "@swc/core": "^1.15.18",

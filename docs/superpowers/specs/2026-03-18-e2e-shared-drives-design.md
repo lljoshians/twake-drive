@@ -12,7 +12,7 @@ Set up end-to-end testing infrastructure for the Shared Drives feature in Twake 
 Three test scenarios, run in serial order (each depends on the previous):
 
 1. **Alice creates a shared drive** — verifies it appears in her sidebar
-2. **Alice invites Bob, Bob accepts** — Bob receives and accepts the invitation
+2. **Alice invites Bob** — sharing is auto-accepted via the `test_default` context (trusted domains), Bob sees the shared drive in his sidebar
 3. **Bob browses inside the shared drive** — Alice creates a folder + file via API, Bob navigates and sees them
 
 ## Architecture
@@ -35,6 +35,19 @@ The cozy-stack service mounts:
 - `fs: url: file:///var/lib/cozy/storage`
 - `couchdb: url: http://admin:password@couchdb:5984/`
 - Mail disabled or set to a no-op
+- A sharing context that auto-accepts sharing between trusted localhost domains:
+
+```yaml
+contexts:
+  test_default:
+    sharing:
+      auto_accept_trusted: true
+      trusted_domains:
+        - localhost
+        - cozy.localhost
+```
+
+This context eliminates the need for Bob to manually accept sharing invitations from Alice — sharings between `*.cozy.localhost` instances are automatically trusted and accepted.
 
 **DNS resolution:** Flat subdomains use `*.localhost` which resolves to `127.0.0.1` on Linux (including `ubuntu-latest` CI runners) and modern macOS. Playwright runs on the host (not in a container) and connects to the cozy-stack container via port 8080 exposed to the host. If `*.localhost` doesn't resolve on a given machine, entries must be added to `/etc/hosts`.
 
@@ -46,8 +59,8 @@ The cozy-stack service mounts:
 2. Start containers via `docker compose -f docker-compose.e2e.yml up -d --wait`
 3. Poll `http://localhost:8080/version` until cozy-stack is ready
 4. Create instances:
-   - `docker compose exec cozystack cozy-stack instances add alice.cozy.localhost --passphrase alice1234`
-   - `docker compose exec cozystack cozy-stack instances add bob.cozy.localhost --passphrase bob1234`
+   - `docker compose exec cozystack cozy-stack instances add alice.cozy.localhost --passphrase alice1234 --context-name test_default`
+   - `docker compose exec cozystack cozy-stack instances add bob.cozy.localhost --passphrase bob1234 --context-name test_default`
 5. Install the Drive app from the mounted local build:
    - `docker compose exec cozystack cozy-stack apps install drive file:///app/drive --domain alice.cozy.localhost`
    - Same for `bob.cozy.localhost`
@@ -124,7 +137,7 @@ Tests in `e2e/tests/`, run in **serial mode** (Playwright `test.describe.serial`
 
 - **`shared-drive.spec.ts`** — single file with serial describe block:
   1. Alice creates a shared drive, verifies it in sidebar
-  2. Alice invites Bob, Bob accepts (uses `page.waitForSelector` / polling to handle async invitation delivery)
+  2. Alice invites Bob — sharing is auto-accepted (trusted context), verify the shared drive appears in Bob's sidebar
   3. Alice creates a folder + file via `stack-api.ts`, Bob navigates into the shared drive and sees them
 
 ### Async Wait Strategy
@@ -189,6 +202,7 @@ The E2E workflow is separate so it doesn't slow down the fast lint/unit/build fe
 - **Session cookies via `/auth/login`** — `token-cli` produces OAuth tokens, not session cookies; for browser-based tests we need real `cozysessid` cookies obtained through the login endpoint
 - **Local app install via `file://`** — `--apps drive` during instance creation fetches from the registry; instead we install from the locally mounted build with `cozy-stack apps install drive file:///app/drive`
 - **Page Object Model** — abstracts selectors from test logic, makes tests resilient to UI changes
+- **Trusted sharing context (`test_default`)** — auto-accepts sharing between `*.cozy.localhost` instances, removing the need for manual acceptance UI flows and reducing async timing issues
 - **Serial test execution** — V1 scenarios are dependent (create → invite → browse), so they run in a single `test.describe.serial` block
 - **Chromium only for V1** — keeps the suite fast; Firefox/WebKit can be added later
 - **Separate CI workflow** — E2E tests are slow; they shouldn't block fast feedback

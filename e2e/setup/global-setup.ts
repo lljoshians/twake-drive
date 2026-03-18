@@ -17,7 +17,7 @@ function exec(cmd: string): string {
 
 function stackExec(cmd: string): string {
   return exec(
-    `docker compose -f ${COMPOSE_FILE} exec -T cozystack cozy-stack ${cmd}`
+    `docker compose -f ${COMPOSE_FILE} exec -T -e COZY_ADMIN_PASSPHRASE=cozy cozystack cozy-stack ${cmd}`
   )
 }
 

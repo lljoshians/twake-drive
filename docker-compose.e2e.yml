@@ -17,6 +17,8 @@ services:
     depends_on:
       couchdb:
         condition: service_healthy
+    environment:
+      COZY_ADMIN_PASSPHRASE: cozy
     volumes:
       - ./build:/app/drive
       - ./e2e/cozy.yml:/etc/cozy/cozy.yml

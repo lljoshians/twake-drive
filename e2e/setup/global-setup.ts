@@ -1,10 +1,11 @@
 import { execSync } from 'child_process'
+import { pbkdf2Sync } from 'crypto'
 
 import { saveAuthState } from '../helpers/auth'
 import { setFlags } from '../helpers/flags'
 
 const COMPOSE_FILE = 'docker-compose.e2e.yml'
-const STACK_URL = 'http://localhost:8080'
+const STACK_URL = 'http://localhost:80'
 
 const USERS = {
   alice: { domain: 'alice.cozy.localhost', passphrase: 'alice1234' },
@@ -38,44 +39,65 @@ async function waitForStack(url: string, timeoutMs = 60_000): Promise<void> {
 async function getSessionCookie(
   domain: string,
   passphrase: string
-): Promise<string> {
-  // Get the CSRF token first
-  const loginPageRes = await fetch(`http://${domain}:8080/auth/login`)
+): Promise<{ name: string; value: string }> {
+  // Get the login page to extract CSRF token and PBKDF2 parameters
+  const loginPageRes = await fetch(`http://${domain}:80/auth/login`)
   const html = await loginPageRes.text()
+
   const csrfMatch = html.match(/name="csrf_token"\s+value="([^"]+)"/)
   if (!csrfMatch) throw new Error(`Could not find CSRF token for ${domain}`)
   const csrfToken = csrfMatch[1]
 
+  const iterMatch = html.match(/data-iterations="(\d+)"/)
+  const saltMatch = html.match(/data-salt="([^"]+)"/)
+  if (!iterMatch || !saltMatch)
+    throw new Error(`Could not find PBKDF2 params for ${domain}`)
+  const iterations = parseInt(iterMatch[1])
+  const salt = saltMatch[1]
+
+  // Two-step PBKDF2 hash matching cozy-stack's password-helpers.js:
+  // 1. master = PBKDF2(password, salt, iterations, 32, sha256)
+  // 2. hashed = PBKDF2(master, password, 1, 32, sha256)  — base64 encoded
+  const master = pbkdf2Sync(passphrase, salt, iterations, 32, 'sha256')
+  const hashed = pbkdf2Sync(Uint8Array.from(master), passphrase, 1, 32, 'sha256')
+  const hashedB64 = hashed.toString('base64')
+
   // Extract cookies from the login page response
   const initialCookies = loginPageRes.headers.getSetCookie?.() || []
 
-  // POST to /auth/login with the passphrase
-  const res = await fetch(`http://${domain}:8080/auth/login`, {
+  // POST to /auth/login with the hashed passphrase
+  const res = await fetch(`http://${domain}:80/auth/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
       Cookie: initialCookies.map(c => c.split(';')[0]).join('; '),
     },
     body: new URLSearchParams({
-      passphrase: passphrase,
+      passphrase: hashedB64,
       csrf_token: csrfToken,
     }),
     redirect: 'manual',
   })
 
+  // Session cookie name is dynamic: sess-<hash> with Domain=cozy.localhost
   const setCookies = res.headers.getSetCookie?.() || []
-  const sessionCookie = setCookies
-    .find(c => c.startsWith('cozysessid='))
-    ?.match(/cozysessid=([^;]+)/)?.[1]
-
-  if (!sessionCookie) {
-    throw new Error(`Failed to get session cookie for ${domain}`)
+  const sessCookie = setCookies.find(c => c.startsWith('sess-'))
+  if (!sessCookie) {
+    throw new Error(
+      `Failed to get session cookie for ${domain} (status ${res.status})`
+    )
   }
 
-  return sessionCookie
+  const nameMatch = sessCookie.match(/^([^=]+)=([^;]+)/)
+  if (!nameMatch) throw new Error(`Could not parse session cookie for ${domain}`)
+
+  return { name: nameMatch[1], value: nameMatch[2] }
 }
 
 export default async function globalSetup(): Promise<void> {
+  console.log('[e2e] Cleaning up previous containers...')
+  exec(`docker compose -f ${COMPOSE_FILE} down -v`)
+
   console.log('[e2e] Starting Docker containers...')
   exec(`docker compose -f ${COMPOSE_FILE} up -d --wait`)
 
@@ -105,11 +127,17 @@ export default async function globalSetup(): Promise<void> {
   }
 
   // Obtain session cookies
-  const authState: Record<string, { domain: string; cookie: string }> = {}
+  const authState: Record<
+    string,
+    { domain: string; cookieName: string; cookieValue: string }
+  > = {}
   for (const [name, { domain, passphrase }] of Object.entries(USERS)) {
     console.log(`[e2e] Getting session cookie for ${name}...`)
-    const cookie = await getSessionCookie(domain, passphrase)
-    authState[name] = { domain, cookie }
+    const { name: cookieName, value: cookieValue } = await getSessionCookie(
+      domain,
+      passphrase
+    )
+    authState[name] = { domain, cookieName, cookieValue }
   }
   saveAuthState(authState)
 

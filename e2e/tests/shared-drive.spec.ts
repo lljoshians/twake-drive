@@ -8,8 +8,8 @@ import { ShareModalPage } from '../pages/ShareModalPage'
 import { SharedDrivePage } from '../pages/SharedDrivePage'
 import { SidebarPage } from '../pages/SidebarPage'
 
-const ALICE_URL = 'http://alice.cozy.localhost:8080'
-const BOB_URL = 'http://bob.cozy.localhost:8080'
+const ALICE_URL = 'http://alice-drive.cozy.localhost'
+const BOB_URL = 'http://bob-drive.cozy.localhost'
 const SHARED_DRIVE_NAME = `Test Drive ${Date.now()}`
 
 test.describe.serial('Shared Drives', () => {

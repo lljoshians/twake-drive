@@ -1,6 +1,6 @@
 import { loadAuthState } from './auth'
 
-const STACK_PORT = 8080
+const STACK_PORT = 80
 
 async function stackFetch(
   user: string,
@@ -8,13 +8,13 @@ async function stackFetch(
   options: RequestInit = {}
 ): Promise<Response> {
   const state = loadAuthState()
-  const { domain, cookie } = state[user]
+  const { domain, cookieName, cookieValue } = state[user]
 
   const res = await fetch(`http://${domain}:${STACK_PORT}${path}`, {
     ...options,
     headers: {
       ...options.headers,
-      Cookie: `cozysessid=${cookie}`,
+      Cookie: `${cookieName}=${cookieValue}`,
     },
   })
 

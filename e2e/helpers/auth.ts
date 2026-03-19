@@ -4,10 +4,11 @@ import type { Page } from '@playwright/test'
 
 const AUTH_STATE_PATH = path.join(__dirname, '..', '.auth-state.json')
 
-interface AuthState {
+export interface AuthState {
   [user: string]: {
     domain: string
-    cookie: string
+    cookieName: string
+    cookieValue: string
   }
 }
 
@@ -21,12 +22,12 @@ export function saveAuthState(state: AuthState): void {
 
 export async function authenticate(page: Page, user: string): Promise<void> {
   const state = loadAuthState()
-  const { domain, cookie } = state[user]
+  const { domain, cookieName, cookieValue } = state[user]
   await page.context().addCookies([
     {
-      name: 'cozysessid',
-      value: cookie,
-      domain,
+      name: cookieName,
+      value: cookieValue,
+      domain: `.cozy.localhost`,
       path: '/',
       httpOnly: true,
       sameSite: 'Lax',

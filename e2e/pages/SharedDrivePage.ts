@@ -8,8 +8,11 @@ export class SharedDrivePage {
   }
 
   getCreateButton(): Locator {
-    // The CreateSharedDriveButton renders in the Empty view with label "Create"
-    return this.page.getByRole('button', { name: /create/i })
+    // The CreateSharedDriveButton renders inside the empty-folder container.
+    // Scoping avoids matching the sidebar "Create" button.
+    return this.page
+      .getByTestId('empty-folder')
+      .getByRole('button', { name: /create/i })
   }
 
   async clickCreate(): Promise<void> {

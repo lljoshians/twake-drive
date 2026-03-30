@@ -9,7 +9,7 @@ const STACK_URL = 'http://localhost:80'
 
 const USERS = {
   alice: { domain: 'alice.cozy.localhost', passphrase: 'alice1234' },
-  bob: { domain: 'bob.cozy.localhost', passphrase: 'bob1234' },
+  bob: { domain: 'bob.cozy.localhost', passphrase: 'bob1234' }
 }
 
 function exec(cmd: string): string {
@@ -18,7 +18,7 @@ function exec(cmd: string): string {
 
 function stackExec(cmd: string): string {
   return exec(
-    `docker compose -f ${COMPOSE_FILE} exec -T -e COZY_ADMIN_PASSPHRASE=cozy cozystack cozy-stack ${cmd}`
+    `docker compose -f ${COMPOSE_FILE} exec -T -e COZY_ADMIN_PASSPHRASE=cozy -e COZY_ADMIN_HOST=localhost cozystack cozy-stack ${cmd}`
   )
 }
 
@@ -59,7 +59,13 @@ async function getSessionCookie(
   // 1. master = PBKDF2(password, salt, iterations, 32, sha256)
   // 2. hashed = PBKDF2(master, password, 1, 32, sha256)  — base64 encoded
   const master = pbkdf2Sync(passphrase, salt, iterations, 32, 'sha256')
-  const hashed = pbkdf2Sync(Uint8Array.from(master), passphrase, 1, 32, 'sha256')
+  const hashed = pbkdf2Sync(
+    Uint8Array.from(master),
+    passphrase,
+    1,
+    32,
+    'sha256'
+  )
   const hashedB64 = hashed.toString('base64')
 
   // Extract cookies from the login page response
@@ -70,13 +76,13 @@ async function getSessionCookie(
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      Cookie: initialCookies.map(c => c.split(';')[0]).join('; '),
+      Cookie: initialCookies.map(c => c.split(';')[0]).join('; ')
     },
     body: new URLSearchParams({
       passphrase: hashedB64,
-      csrf_token: csrfToken,
+      csrf_token: csrfToken
     }),
-    redirect: 'manual',
+    redirect: 'manual'
   })
 
   // Session cookie name is dynamic: sess-<hash> with Domain=cozy.localhost
@@ -89,7 +95,8 @@ async function getSessionCookie(
   }
 
   const nameMatch = sessCookie.match(/^([^=]+)=([^;]+)/)
-  if (!nameMatch) throw new Error(`Could not parse session cookie for ${domain}`)
+  if (!nameMatch)
+    throw new Error(`Could not parse session cookie for ${domain}`)
 
   return { name: nameMatch[1], value: nameMatch[2] }
 }
@@ -115,15 +122,18 @@ export default async function globalSetup(): Promise<void> {
   // Install Drive app from local build
   for (const [name, { domain }] of Object.entries(USERS)) {
     console.log(`[e2e] Installing Drive app for ${name}...`)
-    stackExec(
-      `apps install drive file:///app/drive --domain ${domain}`
-    )
+    stackExec(`apps install drive file:///app/drive --domain ${domain}`)
   }
 
   // Set feature flags
   for (const [name, { domain }] of Object.entries(USERS)) {
     console.log(`[e2e] Setting feature flags for ${name}...`)
-    setFlags(domain, { 'drive.shared-drive.enabled': true })
+    setFlags(domain, {
+      'cozy.hide-sharing-cozy-to-cozy': true,
+      'drive.shared-drive.enabled': true,
+      'drive.federated-shared-folder.enabled': true,
+      'drive.federated-shared-modal.enabled': true
+    })
   }
 
   // Obtain session cookies

@@ -22,4 +22,14 @@ export class DrivePage {
   async waitForFileVisible(name: string): Promise<void> {
     await this.getFileByName(name).waitFor({ state: 'visible' })
   }
+
+  async createFolder(name: string): Promise<void> {
+    await this.page.getByRole('button', { name: 'Create' }).click()
+    await this.page.getByTestId('add-folder-link').click()
+    const input = this.page.getByTestId('name-input').locator('input')
+    await input.waitFor({ state: 'visible' })
+    await input.fill(name)
+    await input.press('Enter')
+    await this.waitForFileVisible(name)
+  }
 }

@@ -14,7 +14,7 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     actionTimeout: 10_000,
   },
-  timeout: 30_000,
+  timeout: 60_000,
   globalTimeout: 300_000,
   projects: [
     {

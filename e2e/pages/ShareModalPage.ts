@@ -22,13 +22,21 @@ export class ShareModalPage {
       .click()
   }
 
-  async confirm(): Promise<void> {
+  async share(): Promise<void> {
     await this.dialog
       .getByRole('button', { name: /share|send|confirm|ok/i })
       .click()
   }
 
-  async waitForClose(): Promise<void> {
-    await this.dialog.waitFor({ state: 'hidden', timeout: 15_000 })
+  /** Waits for the member to appear in the "Who has access" list */
+  async waitForMemberVisible(email: string): Promise<void> {
+    await this.dialog
+      .getByText(new RegExp(email, 'i'))
+      .waitFor({ state: 'visible', timeout: 10_000 })
+  }
+
+  async close(): Promise<void> {
+    await this.dialog.getByRole('button', { name: /close/i }).click()
+    await this.dialog.waitFor({ state: 'hidden', timeout: 10_000 })
   }
 }

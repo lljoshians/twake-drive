@@ -16,10 +16,17 @@ export class ShareModalPage {
   async addMember(email: string): Promise<void> {
     const contactInput = this.dialog.getByRole('textbox').first()
     await contactInput.fill(email)
-    // Wait for autocomplete suggestion and select it
-    await this.page
-      .getByRole('option', { name: new RegExp(email, 'i') })
-      .click()
+    // Either click a matching autocomplete suggestion (existing contact) or
+    // press Enter (free-form email input).
+    const suggestion = this.page
+      .getByRole('option')
+      .filter({ hasText: email })
+      .first()
+    if (await suggestion.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      await suggestion.click()
+    } else {
+      await contactInput.press('Enter')
+    }
   }
 
   /** Submits the share form and waits for the modal to close (success). */

@@ -1,5 +1,8 @@
 import type { Page, Locator } from '@playwright/test'
 
+/** Sidebar / global navigation helpers. Routes that don't have a sidebar
+ * entry (Favorites, Search) fall back to a hash-based goto on the current
+ * origin so tests don't have to special-case them. */
 export class SidebarPage {
   private readonly page: Page
   private readonly nav: Locator
@@ -9,12 +12,34 @@ export class SidebarPage {
     this.nav = page.locator('nav')
   }
 
-  async goToSharings(): Promise<void> {
-    await this.nav.getByRole('link', { name: /sharing/i }).click()
+  private async goToHash(hash: string): Promise<void> {
+    const url = new URL(this.page.url())
+    url.hash = hash
+    await this.page.goto(url.toString())
   }
 
-  async goToDrive(): Promise<void> {
-    await this.nav.getByRole('link', { name: /drive/i }).first().click()
+  async goToMyDrive(): Promise<void> {
+    await this.nav.getByRole('link', { name: /my drive/i }).first().click()
+  }
+
+  async goToRecent(): Promise<void> {
+    await this.nav.getByRole('link', { name: /recents?/i }).first().click()
+  }
+
+  async goToFavorites(): Promise<void> {
+    await this.goToHash('#/favorites')
+  }
+
+  async goToTrash(): Promise<void> {
+    await this.nav.getByRole('link', { name: /(bin|trash)/i }).first().click()
+  }
+
+  async goToSearch(): Promise<void> {
+    await this.goToHash('#/search')
+  }
+
+  async goToSharings(): Promise<void> {
+    await this.nav.getByRole('link', { name: /sharing/i }).click()
   }
 
   getSharedDriveLink(name: string): Locator {

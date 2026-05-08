@@ -18,10 +18,6 @@ export class SidebarPage {
     await this.page.goto(url.toString())
   }
 
-  async goToMyDrive(): Promise<void> {
-    await this.nav.getByRole('link', { name: /my drive/i }).first().click()
-  }
-
   async goToRecent(): Promise<void> {
     await this.nav.getByRole('link', { name: /recents?/i }).first().click()
   }
@@ -32,21 +28,5 @@ export class SidebarPage {
 
   async goToTrash(): Promise<void> {
     await this.nav.getByRole('link', { name: /(bin|trash)/i }).first().click()
-  }
-
-  async goToSearch(): Promise<void> {
-    await this.goToHash('#/search')
-  }
-
-  async goToSharings(): Promise<void> {
-    await this.nav.getByRole('link', { name: /sharing/i }).click()
-  }
-
-  getSharedDriveLink(name: string): Locator {
-    return this.nav.getByRole('link', { name })
-  }
-
-  async clickSharedDrive(name: string): Promise<void> {
-    await this.getSharedDriveLink(name).click()
   }
 }

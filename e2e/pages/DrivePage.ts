@@ -1,8 +1,15 @@
 import type { Page, Locator } from '@playwright/test'
 
+/**
+ * Page object for the Drive file list view (My Drive, Trash, inside a folder
+ * or shared drive — anything that renders the standard fil-content-body).
+ *
+ * Note on locale: every menuitem regex below assumes the UI is in English.
+ * Tests run against an instance created with Locale=en in global-setup.
+ */
 export class DrivePage {
   private readonly page: Page
-  readonly fileList: Locator
+  private readonly fileList: Locator
 
   constructor(page: Page) {
     this.page = page
@@ -15,6 +22,14 @@ export class DrivePage {
       .filter({ hasText: name })
   }
 
+  /** Matches every row whose filename cell contains the given substring —
+   *  use for "the original and its (1) copy" style assertions. */
+  getFilesMatching(stem: string): Locator {
+    return this.fileList
+      .getByTestId('fil-file-filename-and-ext')
+      .filter({ hasText: stem })
+  }
+
   getFileRow(name: string): Locator {
     // Each row is a plain <div> with no semantic role; locate the closest
     // ancestor that contains the per-row "More" button — that's the row.
@@ -23,7 +38,6 @@ export class DrivePage {
     )
   }
 
-  /** The "More" (kebab) button inside the row for the given file/folder. */
   getRowMoreButton(name: string): Locator {
     return this.getFileRow(name).getByRole('button', { name: 'More' })
   }
@@ -56,9 +70,7 @@ export class DrivePage {
     await this.waitForFileVisible(name)
   }
 
-  /** Opens the per-row "More" action menu and returns it as a Locator. */
   async openRowActionMenu(name: string): Promise<Locator> {
-    await this.getFileByName(name).hover()
     await this.getRowMoreButton(name).click()
     return this.page.getByRole('menu')
   }
@@ -73,7 +85,6 @@ export class DrivePage {
     await this.waitForFileVisible(newName)
   }
 
-  /** Moves an item via the row menu → Move to dialog. */
   async moveTo(name: string, targetFolder: string): Promise<void> {
     const menu = await this.openRowActionMenu(name)
     await menu.getByRole('menuitem', { name: /move to/i }).click()
@@ -83,13 +94,10 @@ export class DrivePage {
       .getByRole('button', { name: new RegExp(`^${targetFolder}$`) })
       .first()
       .dblclick()
-    await dialog
-      .getByRole('button', { name: /^move$/i })
-      .click()
+    await dialog.getByRole('button', { name: /^move$/i }).click()
     await dialog.waitFor({ state: 'hidden' })
   }
 
-  /** Duplicates an item to the current folder via the row menu. */
   async duplicate(name: string): Promise<void> {
     const menu = await this.openRowActionMenu(name)
     await menu.getByRole('menuitem', { name: /duplicate/i }).click()
@@ -102,7 +110,6 @@ export class DrivePage {
     }
   }
 
-  /** Sends an item to Trash via the row menu, confirming the dialog. */
   async sendToTrash(name: string): Promise<void> {
     const menu = await this.openRowActionMenu(name)
     await menu.getByRole('menuitem', { name: /^remove$/i }).click()
@@ -113,33 +120,18 @@ export class DrivePage {
     await this.waitForFileHidden(name)
   }
 
-  /** Marks a file as favourite via the row menu. */
   async addToFavorites(name: string): Promise<void> {
     const menu = await this.openRowActionMenu(name)
     await menu.getByRole('menuitem', { name: /add to favorites/i }).click()
   }
 
-  /** Trash-only: restores a previously-trashed item. */
   async restore(name: string): Promise<void> {
     const menu = await this.openRowActionMenu(name)
     await menu.getByRole('menuitem', { name: /^restore$/i }).click()
     await this.waitForFileHidden(name)
   }
 
-  /** Trash-only: empties the trash via the toolbar. */
-  async emptyTrash(): Promise<void> {
-    await this.page.getByRole('button', { name: /empty.*trash|delete all/i }).click()
-    const dialog = this.page.getByRole('dialog')
-    await dialog.waitFor({ state: 'visible' })
-    await dialog
-      .getByRole('button', { name: /delete all|delete permanently|confirm|ok/i })
-      .click()
-    await dialog.waitFor({ state: 'hidden' })
-  }
-
-  /** Uploads files via the sidebar Upload button's hidden file input.
-   *
-   * cozy-ui's FileInput spreads extra props onto the underlying <input
+  /** cozy-ui's FileInput spreads extra props onto the underlying <input
    * type=file>, so the `upload-btn` testid lives on the input itself. */
   async uploadFiles(filePaths: string | string[]): Promise<void> {
     await this.page

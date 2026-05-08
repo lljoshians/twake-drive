@@ -1,54 +1,39 @@
-import { test, expect } from '@playwright/test'
-
-import { authenticate } from '../helpers/auth'
 import { USERS } from '../helpers/config'
-import { DrivePage } from '../pages/DrivePage'
+import { test, expect, stamp } from '../helpers/fixtures'
 import { ShareModalPage } from '../pages/ShareModalPage'
 
-const FOLDER_NAME = `Shared Folder ${Date.now()}`
+// Shared across .serial tests in this describe — do not enable fullyParallel.
+const FOLDER_NAME = `Shared Folder ${stamp()}`
 
 test.describe.serial('Folder sharing', () => {
   test('Alice creates a folder, enters it, and shares it with Bob', async ({
-    browser
+    alicePage,
+    aliceDrive
   }) => {
-    const context = await browser.newContext()
-    const page = await context.newPage()
-    await authenticate(page, 'alice')
+    await alicePage.goto(`${USERS.alice.appUrl}/#/folder`)
 
-    await page.goto(`${USERS.alice.appUrl}/#/folder`)
-    const drive = new DrivePage(page)
+    await aliceDrive.createFolder(FOLDER_NAME)
+    await aliceDrive.clickFile(FOLDER_NAME)
+    await alicePage.waitForURL(/\/folder\/[^/]+$/)
 
-    await drive.createFolder(FOLDER_NAME)
+    await alicePage.getByRole('button', { name: /share/i }).click()
 
-    await drive.clickFile(FOLDER_NAME)
-    await page.waitForURL(/\/folder\/[^/]+$/)
-
-    await page.getByRole('button', { name: /share/i }).click()
-
-    const shareModal = new ShareModalPage(page)
+    const shareModal = new ShareModalPage(alicePage)
     await shareModal.waitForOpen()
     await shareModal.addMember(USERS.bob.email)
     await shareModal.share()
-
-    await context.close()
   })
 
   test('Bob sees the shared folder in his Sharings section', async ({
-    browser
+    bobPage,
+    bobDrive
   }) => {
-    const context = await browser.newContext()
-    const page = await context.newPage()
-    await authenticate(page, 'bob')
-
-    await page.goto(`${USERS.bob.appUrl}/#/sharings`)
-    const drive = new DrivePage(page)
+    await bobPage.goto(`${USERS.bob.appUrl}/#/sharings`)
 
     // Sharing propagates asynchronously across instances; reload until it lands.
     await expect(async () => {
-      await page.reload()
-      await drive.waitForFileVisible(FOLDER_NAME)
+      await bobPage.reload()
+      await bobDrive.waitForFileVisible(FOLDER_NAME)
     }).toPass({ timeout: 30_000 })
-
-    await context.close()
   })
 })

@@ -1,27 +1,21 @@
-import { test, expect } from '@playwright/test'
-
-import { authenticate } from '../helpers/auth'
 import { USERS } from '../helpers/config'
-import { DrivePage } from '../pages/DrivePage'
+import { test, expect, stamp } from '../helpers/fixtures'
 import { ShareModalPage } from '../pages/ShareModalPage'
 import { SharedDriveModalPage } from '../pages/SharedDriveModalPage'
 import { SharedDrivePage } from '../pages/SharedDrivePage'
 
-const SHARED_DRIVE_NAME = `Shared Drive ${Date.now()}`
-const FOLDER_INSIDE = `Inside Folder ${Date.now()}`
+// Shared across .serial tests in this describe — do not enable fullyParallel.
+const SHARED_DRIVE_NAME = `Shared Drive ${stamp()}`
+const FOLDER_INSIDE = `Inside Folder ${stamp()}`
 
 test.describe.serial('Shared Drives', () => {
   test('Alice creates a shared drive and it shows up in Sharings', async ({
-    browser
+    alicePage,
+    aliceDrive
   }) => {
-    const ctx = await browser.newContext()
-    const page = await ctx.newPage()
-    await authenticate(page, 'alice')
-
-    await page.goto(`${USERS.alice.appUrl}/#/sharings?tab=1`)
-    const sharedDrive = new SharedDrivePage(page)
-    const modal = new SharedDriveModalPage(page)
-    const drive = new DrivePage(page)
+    await alicePage.goto(`${USERS.alice.appUrl}/#/sharings?tab=1`)
+    const sharedDrive = new SharedDrivePage(alicePage)
+    const modal = new SharedDriveModalPage(alicePage)
 
     await sharedDrive.clickCreate()
     await modal.waitForOpen()
@@ -29,78 +23,55 @@ test.describe.serial('Shared Drives', () => {
     await modal.confirm()
     await modal.waitForClose()
 
-    await expect(drive.getFileByName(SHARED_DRIVE_NAME)).toBeVisible({
+    await expect(aliceDrive.getFileByName(SHARED_DRIVE_NAME)).toBeVisible({
       timeout: 15_000
     })
-
-    await ctx.close()
   })
 
   test('Alice invites Bob and the share auto-accepts on his side', async ({
-    browser
+    alicePage,
+    aliceDrive,
+    bobPage,
+    bobDrive
   }) => {
-    const aliceCtx = await browser.newContext()
-    const alice = await aliceCtx.newPage()
-    await authenticate(alice, 'alice')
-
-    await alice.goto(`${USERS.alice.appUrl}/#/sharings?tab=1`)
-    const aliceDrive = new DrivePage(alice)
+    await alicePage.goto(`${USERS.alice.appUrl}/#/sharings?tab=1`)
     await aliceDrive.clickFile(SHARED_DRIVE_NAME)
-    // Owner-side URL is /folder/<id>; recipient-side is /shareddrive/...
-    // Just wait for the drive name to land in the breadcrumb.
-    await expect(alice.getByText(SHARED_DRIVE_NAME).first()).toBeVisible()
+    // Owner sees /folder/<id>; recipient sees /shareddrive/... — assert on
+    // the breadcrumb instead of the URL so this works for both.
+    await expect(alicePage.getByText(SHARED_DRIVE_NAME).first()).toBeVisible()
 
-    await alice.getByRole('button', { name: /share/i }).click()
-    const shareModal = new ShareModalPage(alice)
+    await alicePage.getByRole('button', { name: /share/i }).click()
+    const shareModal = new ShareModalPage(alicePage)
     await shareModal.waitForOpen()
     await shareModal.addMember(USERS.bob.email)
     await shareModal.share()
-    await aliceCtx.close()
 
-    const bobCtx = await browser.newContext()
-    const bob = await bobCtx.newPage()
-    await authenticate(bob, 'bob')
-
-    const bobDrive = new DrivePage(bob)
     await expect(async () => {
-      await bob.goto(`${USERS.bob.appUrl}/#/sharings?tab=1`)
+      await bobPage.goto(`${USERS.bob.appUrl}/#/sharings?tab=1`)
       await expect(bobDrive.getFileByName(SHARED_DRIVE_NAME)).toBeVisible({
         timeout: 5_000
       })
     }).toPass({ timeout: 30_000 })
-
-    await bobCtx.close()
   })
 
   test('Bob can browse content Alice puts inside the shared drive', async ({
-    browser
+    alicePage,
+    aliceDrive,
+    bobPage,
+    bobDrive
   }) => {
-    const aliceCtx = await browser.newContext()
-    const alice = await aliceCtx.newPage()
-    await authenticate(alice, 'alice')
-
-    await alice.goto(`${USERS.alice.appUrl}/#/sharings?tab=1`)
-    const aliceDrive = new DrivePage(alice)
+    await alicePage.goto(`${USERS.alice.appUrl}/#/sharings?tab=1`)
     await aliceDrive.clickFile(SHARED_DRIVE_NAME)
-    await expect(alice.getByText(SHARED_DRIVE_NAME).first()).toBeVisible()
-
+    await expect(alicePage.getByText(SHARED_DRIVE_NAME).first()).toBeVisible()
     await aliceDrive.createFolder(FOLDER_INSIDE)
-    await aliceCtx.close()
 
-    const bobCtx = await browser.newContext()
-    const bob = await bobCtx.newPage()
-    await authenticate(bob, 'bob')
-
-    const bobDrive = new DrivePage(bob)
     await expect(async () => {
-      await bob.goto(`${USERS.bob.appUrl}/#/sharings?tab=1`)
+      await bobPage.goto(`${USERS.bob.appUrl}/#/sharings?tab=1`)
       await bobDrive.clickFile(SHARED_DRIVE_NAME)
-      await expect(bob.getByText(SHARED_DRIVE_NAME).first()).toBeVisible({
+      await expect(bobPage.getByText(SHARED_DRIVE_NAME).first()).toBeVisible({
         timeout: 5_000
       })
       await bobDrive.waitForFileVisible(FOLDER_INSIDE)
     }).toPass({ timeout: 30_000 })
-
-    await bobCtx.close()
   })
 })

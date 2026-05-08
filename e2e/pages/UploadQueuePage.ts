@@ -22,8 +22,4 @@ export class UploadQueuePage {
   async waitForItem(name: string): Promise<void> {
     await this.getItemByName(name).waitFor({ state: 'visible', timeout: 15_000 })
   }
-
-  countItems(): Promise<number> {
-    return this.queue.getByTestId('upload-queue-item').count()
-  }
 }

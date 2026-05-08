@@ -18,11 +18,4 @@ export class SharedDrivePage {
   async clickCreate(): Promise<void> {
     await this.getCreateButton().click()
   }
-
-  getSharedDriveInList(name: string): Locator {
-    return this.page
-      .getByTestId('fil-content-body')
-      .getByTestId('fil-file-filename-and-ext')
-      .filter({ hasText: name })
-  }
 }

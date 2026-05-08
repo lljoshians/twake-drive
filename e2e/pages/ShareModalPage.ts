@@ -31,7 +31,9 @@ export class ShareModalPage {
   /** Waits for the member to appear in the "Who has access" list */
   async waitForMemberVisible(email: string): Promise<void> {
     await this.dialog
-      .getByText(new RegExp(email, 'i'))
+      .getByRole('paragraph')
+      .filter({ hasText: new RegExp(email, 'i') })
+      .first()
       .waitFor({ state: 'visible', timeout: 10_000 })
   }
 

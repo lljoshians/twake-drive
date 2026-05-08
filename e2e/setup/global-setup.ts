@@ -187,11 +187,19 @@ async function syncContacts(): Promise<void> {
 }
 
 export default async function globalSetup(): Promise<void> {
-  console.log('[e2e] Cleaning up previous containers...')
-  execSync(`docker compose -f ${COMPOSE_FILE} down -v`, {
-    encoding: 'utf-8',
-    cwd: process.cwd()
-  })
+  if (process.env.E2E_SKIP_TEARDOWN === '1') {
+    console.log(
+      '[e2e] E2E_SKIP_TEARDOWN=1 — skipping pre-run cleanup. ' +
+        'Provisioning will fail if state from a previous run conflicts; ' +
+        '`docker compose -f docker-compose.e2e.yml down -v` to reset.'
+    )
+  } else {
+    console.log('[e2e] Cleaning up previous containers...')
+    execSync(`docker compose -f ${COMPOSE_FILE} down -v`, {
+      encoding: 'utf-8',
+      cwd: process.cwd()
+    })
+  }
 
   console.log('[e2e] Starting Docker containers...')
   execSync(`docker compose -f ${COMPOSE_FILE} up -d --wait`, {

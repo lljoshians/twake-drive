@@ -111,11 +111,13 @@ export class FileRow {
     await menu.getByRole('menuitem', { name: /move to/i }).click()
     const dialog = this.page.getByRole('dialog')
     await dialog.waitFor({ state: 'visible' })
+    // No .first() here — if the folder name is ambiguous in the picker,
+    // surface that as a Playwright strict-mode error instead of silently
+    // operating on whichever match the DOM happened to put first.
     await dialog
       .getByRole('button', {
         name: new RegExp(`^${escapeRegExp(targetFolder)}$`)
       })
-      .first()
       .dblclick()
     await dialog.getByRole('button', { name: /^move$/i }).click()
     await dialog.waitFor({ state: 'hidden' })

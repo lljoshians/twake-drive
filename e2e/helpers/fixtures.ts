@@ -46,9 +46,15 @@ let stampCounter = 0
 export const stamp = (): string =>
   `${Date.now()}-${process.pid}-${++stampCounter}`
 
-/** Best-effort file deletion — swallows ENOENT so finally-blocks stay clean. */
-export const safeUnlink = (filePath: string): Promise<void> =>
-  unlink(filePath).catch(() => undefined) as Promise<void>
+/** Best-effort file deletion — swallows ENOENT so finally-blocks stay clean,
+ *  but lets permission / path errors propagate so they aren't silently lost. */
+export const safeUnlink = async (filePath: string): Promise<void> => {
+  try {
+    await unlink(filePath)
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
+  }
+}
 
 /** Escape regex metacharacters so a literal name can be used in a RegExp. */
 export const escapeRegExp = (text: string): string =>

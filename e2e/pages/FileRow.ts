@@ -82,11 +82,16 @@ export class FileRow {
       await dialog.waitFor({ state: 'visible' })
     } else {
       // Brief grace period for the dialog to appear; if it doesn't, the
-      // action skipped the confirm and we're already done.
+      // action skipped the confirm and we're already done. Only swallow
+      // the timeout — anything else (page detached, closed context,
+      // strict-mode violation) should propagate.
       const appeared = await dialog
         .waitFor({ state: 'visible', timeout: OPTIONAL_DIALOG_TIMEOUT })
         .then(() => true)
-        .catch(() => false)
+        .catch((err: Error) => {
+          if (err.name === 'TimeoutError') return false
+          throw err
+        })
       if (!appeared) return
     }
     await dialog.getByRole('button', { name: confirm.button }).click()

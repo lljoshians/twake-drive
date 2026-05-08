@@ -1,6 +1,5 @@
 import { loadAuthState } from './auth'
-
-const STACK_PORT = 80
+import { STACK_PORT } from './config'
 
 async function stackFetch(
   user: string,
@@ -14,8 +13,8 @@ async function stackFetch(
     ...options,
     headers: {
       ...options.headers,
-      Cookie: `${cookieName}=${cookieValue}`,
-    },
+      Cookie: `${cookieName}=${cookieValue}`
+    }
   })
 
   if (!res.ok) {
@@ -26,10 +25,12 @@ async function stackFetch(
   return res
 }
 
+const ROOT_DIR = 'io.cozy.files.root-dir'
+
 export async function createFolder(
   user: string,
   name: string,
-  parentId = 'io.cozy.files.root-dir'
+  parentId = ROOT_DIR
 ): Promise<{ id: string; path: string }> {
   const res = await stackFetch(
     user,
@@ -44,7 +45,7 @@ export async function createFile(
   user: string,
   name: string,
   content: string,
-  parentId = 'io.cozy.files.root-dir'
+  parentId = ROOT_DIR
 ): Promise<{ id: string }> {
   const res = await stackFetch(
     user,
@@ -52,7 +53,7 @@ export async function createFile(
     {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: content,
+      body: content
     }
   )
   const json = await res.json()

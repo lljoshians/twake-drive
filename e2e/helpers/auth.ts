@@ -21,16 +21,17 @@ export function saveAuthState(state: AuthState): void {
 }
 
 export async function authenticate(page: Page, user: string): Promise<void> {
-  const state = loadAuthState()
-  const { domain, cookieName, cookieValue } = state[user]
+  const { cookieName, cookieValue } = loadAuthState()[user]
+  // Cookie is pinned to the parent domain so it covers both the instance
+  // (alice.cozy.localhost) and its app subdomain (alice-drive.cozy.localhost).
   await page.context().addCookies([
     {
       name: cookieName,
       value: cookieValue,
-      domain: `.cozy.localhost`,
+      domain: '.cozy.localhost',
       path: '/',
       httpOnly: true,
-      sameSite: 'Lax',
-    },
+      sameSite: 'Lax'
+    }
   ])
 }

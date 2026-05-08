@@ -75,6 +75,30 @@ export class DrivePage {
     return this.page.getByRole('menu')
   }
 
+  /** Pick a row action and dismiss its confirmation dialog (if any).
+   *
+   * `confirm: 'required'` waits for the dialog to appear; `'optional'`
+   * proceeds only if it's already visible (some actions skip the confirm
+   * when there's nothing to warn about). */
+  private async runRowAction(
+    name: string,
+    menuItem: RegExp,
+    confirm?: { button: RegExp; wait: 'required' | 'optional' }
+  ): Promise<void> {
+    const menu = await this.openRowActionMenu(name)
+    await menu.getByRole('menuitem', { name: menuItem }).click()
+    if (!confirm) return
+
+    const dialog = this.page.getByRole('dialog')
+    if (confirm.wait === 'required') {
+      await dialog.waitFor({ state: 'visible' })
+    } else if (!(await dialog.isVisible().catch(() => false))) {
+      return
+    }
+    await dialog.getByRole('button', { name: confirm.button }).click()
+    await dialog.waitFor({ state: 'hidden' })
+  }
+
   async rename(oldName: string, newName: string): Promise<void> {
     const menu = await this.openRowActionMenu(oldName)
     await menu.getByRole('menuitem', { name: /^rename$/i }).click()
@@ -99,24 +123,17 @@ export class DrivePage {
   }
 
   async duplicate(name: string): Promise<void> {
-    const menu = await this.openRowActionMenu(name)
-    await menu.getByRole('menuitem', { name: /duplicate/i }).click()
-    const dialog = this.page.getByRole('dialog')
-    if (await dialog.isVisible().catch(() => false)) {
-      await dialog
-        .getByRole('button', { name: /duplicate|confirm|ok/i })
-        .click()
-      await dialog.waitFor({ state: 'hidden' })
-    }
+    await this.runRowAction(name, /duplicate/i, {
+      button: /duplicate|confirm|ok/i,
+      wait: 'optional'
+    })
   }
 
   async sendToTrash(name: string): Promise<void> {
-    const menu = await this.openRowActionMenu(name)
-    await menu.getByRole('menuitem', { name: /^remove$/i }).click()
-    const dialog = this.page.getByRole('dialog')
-    await dialog.waitFor({ state: 'visible' })
-    await dialog.getByRole('button', { name: /^remove$/i }).click()
-    await dialog.waitFor({ state: 'hidden' })
+    await this.runRowAction(name, /^remove$/i, {
+      button: /^remove$/i,
+      wait: 'required'
+    })
     await this.waitForFileHidden(name)
   }
 

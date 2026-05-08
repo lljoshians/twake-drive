@@ -141,6 +141,51 @@ async function setupUser(
   return { cookieName: cookie.name, cookieValue: cookie.value }
 }
 
+// Pre-populate each instance's address book with a contact for every other
+// org member. Without this, the cozy-sharing modal only knows the recipient's
+// email, and `Sharing.SendInvitations` fails over to SMTP. With the contact
+// in place the modal stamps the recipient's instance URL on the share, so
+// cozy-stack does a direct stack-to-stack PUT and the trusted-domain rule on
+// the receiving side fires `auto_accept_trusted`.
+async function createContact(hostUser: User, peer: User): Promise<void> {
+  const token = stackExec(
+    `instances token-cli ${hostUser.instance} io.cozy.contacts`
+  )
+  const res = await fetch(
+    `http://${hostUser.instance}/data/io.cozy.contacts/`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        fullname: peer.instance.split('.')[0],
+        name: { givenName: peer.instance.split('.')[0] },
+        email: [{ address: peer.email, primary: true }],
+        cozy: [{ url: `http://${peer.instance}`, primary: true }]
+      })
+    }
+  )
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(
+      `Failed to create contact for ${peer.email} on ${hostUser.instance} (${res.status}): ${body}`
+    )
+  }
+}
+
+async function syncContacts(): Promise<void> {
+  const entries = Object.values(USERS)
+  await Promise.all(
+    entries.flatMap(host =>
+      entries
+        .filter(peer => peer.instance !== host.instance)
+        .map(peer => createContact(host, peer))
+    )
+  )
+}
+
 export default async function globalSetup(): Promise<void> {
   console.log('[e2e] Cleaning up previous containers...')
   execSync(`docker compose -f ${COMPOSE_FILE} down -v`, {
@@ -164,6 +209,9 @@ export default async function globalSetup(): Promise<void> {
     })
   )
   saveAuthState(Object.fromEntries(results))
+
+  console.log('[e2e] Cross-populating org contacts...')
+  await syncContacts()
 
   console.log('[e2e] Setup complete.')
 }

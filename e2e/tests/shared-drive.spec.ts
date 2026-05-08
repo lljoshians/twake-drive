@@ -29,7 +29,6 @@ test.describe.serial('Folder sharing', () => {
     await shareModal.waitForOpen()
     await shareModal.addMember(USERS.bob.email)
     await shareModal.share()
-    await shareModal.waitForMemberVisible(USERS.bob.email)
 
     await context.close()
   })

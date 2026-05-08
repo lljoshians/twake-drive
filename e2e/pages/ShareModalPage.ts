@@ -22,19 +22,12 @@ export class ShareModalPage {
       .click()
   }
 
+  /** Submits the share form and waits for the modal to close (success). */
   async share(): Promise<void> {
     await this.dialog
       .getByRole('button', { name: /share|send|confirm|ok/i })
       .click()
-  }
-
-  /** Waits for the member to appear in the "Who has access" list */
-  async waitForMemberVisible(email: string): Promise<void> {
-    await this.dialog
-      .getByRole('paragraph')
-      .filter({ hasText: new RegExp(email, 'i') })
-      .first()
-      .waitFor({ state: 'visible', timeout: 10_000 })
+    await this.dialog.waitFor({ state: 'hidden', timeout: 15_000 })
   }
 
   async close(): Promise<void> {

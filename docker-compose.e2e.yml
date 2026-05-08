@@ -22,7 +22,7 @@ services:
       COZY_COUCHDB_URL: http://admin:password@couchdb:5984/
       COZY_FS_URL: file:///var/lib/cozy/storage
       COZY_HOST: 0.0.0.0
-      COZY_PORT: "8080"
+      COZY_PORT: "80"
       COZY_ADMIN_HOST: 0.0.0.0
       COZY_ADMIN_PORT: "6060"
       COZY_SUBDOMAINS: flat
@@ -31,5 +31,5 @@ services:
       - ./build:/app/drive
       - ./e2e/cozy.yml:/etc/cozy/cozy.yml
     ports:
-      - "80:8080"
+      - "80:80"
       - "6060:6060"

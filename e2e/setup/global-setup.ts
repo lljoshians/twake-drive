@@ -61,50 +61,23 @@ async function waitForStack(url: string, timeoutMs = 60_000): Promise<void> {
   throw new Error(`cozy-stack did not become ready within ${timeoutMs}ms`)
 }
 
-function matchOrThrow(
-  source: string,
-  pattern: RegExp,
-  label: string,
-  instance: string
-): string {
-  const m = source.match(pattern)
-  if (!m) throw new Error(`Could not find ${label} for ${instance}`)
-  return m[1]
-}
-
-// Two-step PBKDF2 hash matching cozy-stack's password-helpers.js:
-// 1. master = PBKDF2(password, salt, iterations, 32, sha256)
-// 2. hashed = PBKDF2(master, password, 1, 32, sha256)  — base64 encoded
-function hashPassphrase(
-  passphrase: string,
-  salt: string,
+interface LoginParams {
+  csrfToken: string
   iterations: number
-): string {
-  const master = pbkdf2Sync(passphrase, salt, iterations, 32, 'sha256')
-  const hashed = pbkdf2Sync(
-    Uint8Array.from(master),
-    passphrase,
-    1,
-    32,
-    'sha256'
-  )
-  return hashed.toString('base64')
+  salt: string
 }
 
-// Session cookie name is dynamic: sess-<hash> with Domain=cozy.localhost
-function parseSessionCookie(
-  setCookies: string[],
-  instance: string
-): { name: string; value: string } {
-  const sessCookie = setCookies.find(c => c.startsWith('sess-'))
-  if (!sessCookie) {
-    throw new Error(`Failed to get session cookie for ${instance}`)
+function parseLoginParams(html: string, instance: string): LoginParams {
+  const find = (pattern: RegExp, label: string): string => {
+    const m = html.match(pattern)
+    if (!m) throw new Error(`Could not find ${label} for ${instance}`)
+    return m[1]
   }
-  const nameMatch = sessCookie.match(/^([^=]+)=([^;]+)/)
-  if (!nameMatch) {
-    throw new Error(`Could not parse session cookie for ${instance}`)
+  return {
+    csrfToken: find(/name="csrf_token"\s+value="([^"]+)"/, 'CSRF token'),
+    iterations: parseInt(find(/data-iterations="(\d+)"/, 'PBKDF2 iterations'), 10),
+    salt: find(/data-salt="([^"]+)"/, 'PBKDF2 salt')
   }
-  return { name: nameMatch[1], value: nameMatch[2] }
 }
 
 async function getSessionCookie(
@@ -112,22 +85,15 @@ async function getSessionCookie(
 ): Promise<{ name: string; value: string }> {
   const { instance, passphrase } = user
   const loginPageRes = await fetch(`http://${instance}:80/auth/login`)
-  const html = await loginPageRes.text()
+  const params = parseLoginParams(await loginPageRes.text(), instance)
 
-  const csrfToken = matchOrThrow(
-    html,
-    /name="csrf_token"\s+value="([^"]+)"/,
-    'CSRF token',
-    instance
-  )
-  const iterations = parseInt(
-    matchOrThrow(html, /data-iterations="(\d+)"/, 'PBKDF2 iterations', instance),
-    10
-  )
-  const salt = matchOrThrow(html, /data-salt="([^"]+)"/, 'PBKDF2 salt', instance)
-  const hashedB64 = hashPassphrase(passphrase, salt, iterations)
+  // Two-step PBKDF2 hash matching cozy-stack's password-helpers.js:
+  // 1. master = PBKDF2(password, salt, iterations, 32, sha256)
+  // 2. hashed = PBKDF2(master, password, 1, 32, sha256) — base64-encoded.
+  const master = pbkdf2Sync(passphrase, params.salt, params.iterations, 32, 'sha256')
+  const hashed = pbkdf2Sync(Uint8Array.from(master), passphrase, 1, 32, 'sha256')
+
   const initialCookies = loginPageRes.headers.getSetCookie?.() ?? []
-
   const res = await fetch(`http://${instance}:80/auth/login`, {
     method: 'POST',
     headers: {
@@ -135,29 +101,33 @@ async function getSessionCookie(
       Cookie: initialCookies.map(c => c.split(';')[0]).join('; ')
     },
     body: new URLSearchParams({
-      passphrase: hashedB64,
-      csrf_token: csrfToken
+      passphrase: hashed.toString('base64'),
+      csrf_token: params.csrfToken
     }),
     redirect: 'manual'
   })
 
-  return parseSessionCookie(res.headers.getSetCookie?.() ?? [], instance)
+  // Session cookie name is dynamic: sess-<hash> with Domain=cozy.localhost.
+  const setCookies = res.headers.getSetCookie?.() ?? []
+  const sess = setCookies.find(c => c.startsWith('sess-'))
+  const m = sess?.match(/^([^=]+)=([^;]+)/)
+  if (!m) throw new Error(`Could not extract session cookie for ${instance}`)
+  return { name: m[1], value: m[2] }
 }
 
 async function setupUser(
-  label: string,
   user: User
 ): Promise<{ cookieName: string; cookieValue: string }> {
-  console.log(`[e2e] Creating instance for ${label} (${user.instance})...`)
+  console.log(`[e2e] Creating instance for ${user.label} (${user.instance})...`)
   await createInstance(user)
 
-  console.log(`[e2e] Installing Drive app for ${label}...`)
+  console.log(`[e2e] Installing Drive app for ${user.label}...`)
   stackExec(`apps install drive file:///app/drive --domain ${user.instance}`)
 
-  console.log(`[e2e] Setting feature flags for ${label}...`)
+  console.log(`[e2e] Setting feature flags for ${user.label}...`)
   setFlags(user.instance, FEATURE_FLAGS)
 
-  console.log(`[e2e] Getting session cookie for ${label}...`)
+  console.log(`[e2e] Getting session cookie for ${user.label}...`)
   const cookie = await getSessionCookie(user)
   return { cookieName: cookie.name, cookieValue: cookie.value }
 }
@@ -224,9 +194,9 @@ export default async function globalSetup(): Promise<void> {
   await waitForStack(STACK_URL)
 
   const results = await Promise.all(
-    Object.entries(USERS).map(async ([label, user]) => {
-      const cookie = await setupUser(label, user)
-      return [label, { domain: user.instance, ...cookie }] as const
+    Object.values(USERS).map(async user => {
+      const cookie = await setupUser(user)
+      return [user.label, { domain: user.instance, ...cookie }] as const
     })
   )
   saveAuthState(Object.fromEntries(results))

@@ -20,11 +20,11 @@ test.describe('Navigation surfaces', () => {
     try {
       const fileName = path.basename(file)
       await aliceDrive.uploadFiles(file)
-      await aliceDrive.waitForFileVisible(fileName)
+      await aliceDrive.row(fileName).waitVisible()
 
       await sidebar.goToRecent()
       await alicePage.waitForURL(/\/recent/)
-      await aliceDrive.waitForFileVisible(fileName)
+      await aliceDrive.row(fileName).waitVisible()
     } finally {
       await safeUnlink(file)
     }
@@ -41,12 +41,13 @@ test.describe('Navigation surfaces', () => {
     try {
       const fileName = path.basename(file)
       await aliceDrive.uploadFiles(file)
-      await aliceDrive.waitForFileVisible(fileName)
-      await aliceDrive.addToFavorites(fileName)
+      const row = aliceDrive.row(fileName)
+      await row.waitVisible()
+      await row.addToFavorites()
 
       await sidebar.goToFavorites()
       await alicePage.waitForURL(/\/favorites/)
-      await aliceDrive.waitForFileVisible(fileName)
+      await aliceDrive.row(fileName).waitVisible()
     } finally {
       await safeUnlink(file)
     }
@@ -78,10 +79,10 @@ test.describe('Navigation surfaces', () => {
     const sidebar = new SidebarPage(alicePage)
     const name = `Trashable ${stamp()}`
     await aliceDrive.createFolder(name)
-    await aliceDrive.sendToTrash(name)
+    await aliceDrive.row(name).sendToTrash()
 
     await sidebar.goToTrash()
     await alicePage.waitForURL(/\/trash/)
-    await aliceDrive.waitForFileVisible(name)
+    await aliceDrive.row(name).waitVisible()
   })
 })

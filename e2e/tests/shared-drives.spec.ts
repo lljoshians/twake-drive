@@ -23,7 +23,7 @@ test.describe.serial('Shared Drives', () => {
     await modal.confirm()
     await modal.waitForClose()
 
-    await expect(aliceDrive.getFileByName(SHARED_DRIVE_NAME)).toBeVisible({
+    await expect(aliceDrive.row(SHARED_DRIVE_NAME).cell).toBeVisible({
       timeout: 15_000
     })
   })
@@ -35,7 +35,7 @@ test.describe.serial('Shared Drives', () => {
     bobDrive
   }) => {
     await alicePage.goto(`${USERS.alice.appUrl}/#/sharings?tab=1`)
-    await aliceDrive.clickFile(SHARED_DRIVE_NAME)
+    await aliceDrive.row(SHARED_DRIVE_NAME).open()
     // Owner sees /folder/<id>; recipient sees /shareddrive/... — assert on
     // the breadcrumb instead of the URL so this works for both.
     await expect(alicePage.getByText(SHARED_DRIVE_NAME).first()).toBeVisible()
@@ -48,7 +48,7 @@ test.describe.serial('Shared Drives', () => {
 
     await expect(async () => {
       await bobPage.goto(`${USERS.bob.appUrl}/#/sharings?tab=1`)
-      await expect(bobDrive.getFileByName(SHARED_DRIVE_NAME)).toBeVisible({
+      await expect(bobDrive.row(SHARED_DRIVE_NAME).cell).toBeVisible({
         timeout: 5_000
       })
     }).toPass({ timeout: 30_000 })
@@ -61,17 +61,17 @@ test.describe.serial('Shared Drives', () => {
     bobDrive
   }) => {
     await alicePage.goto(`${USERS.alice.appUrl}/#/sharings?tab=1`)
-    await aliceDrive.clickFile(SHARED_DRIVE_NAME)
+    await aliceDrive.row(SHARED_DRIVE_NAME).open()
     await expect(alicePage.getByText(SHARED_DRIVE_NAME).first()).toBeVisible()
     await aliceDrive.createFolder(FOLDER_INSIDE)
 
     await expect(async () => {
       await bobPage.goto(`${USERS.bob.appUrl}/#/sharings?tab=1`)
-      await bobDrive.clickFile(SHARED_DRIVE_NAME)
+      await bobDrive.row(SHARED_DRIVE_NAME).open()
       await expect(bobPage.getByText(SHARED_DRIVE_NAME).first()).toBeVisible({
         timeout: 5_000
       })
-      await bobDrive.waitForFileVisible(FOLDER_INSIDE)
+      await bobDrive.row(FOLDER_INSIDE).waitVisible()
     }).toPass({ timeout: 30_000 })
   })
 })

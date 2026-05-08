@@ -16,21 +16,26 @@ export const ADMIN_PASSPHRASE = 'cozy'
 export const ORG_ID = 'twake-drive-e2e'
 export const ORG_DOMAIN = 'cozy.localhost'
 
+export type UserLabel = 'alice' | 'bob'
+
 export interface User {
+  label: UserLabel
   instance: string
   appUrl: string
   email: string
   passphrase: string
 }
 
-export const USERS: Record<'alice' | 'bob', User> = {
+export const USERS: Record<UserLabel, User> = {
   alice: {
+    label: 'alice',
     instance: 'alice.cozy.localhost',
     appUrl: 'http://alice-drive.cozy.localhost',
     email: 'alice@cozy.localhost',
     passphrase: 'alice1234'
   },
   bob: {
+    label: 'bob',
     instance: 'bob.cozy.localhost',
     appUrl: 'http://bob-drive.cozy.localhost',
     email: 'bob@cozy.localhost',

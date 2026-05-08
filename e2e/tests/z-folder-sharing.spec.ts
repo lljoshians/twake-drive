@@ -13,7 +13,7 @@ test.describe.serial('Folder sharing', () => {
     await alicePage.goto(`${USERS.alice.appUrl}/#/folder`)
 
     await aliceDrive.createFolder(FOLDER_NAME)
-    await aliceDrive.clickFile(FOLDER_NAME)
+    await aliceDrive.row(FOLDER_NAME).open()
     await alicePage.waitForURL(/\/folder\/[^/]+$/)
 
     await alicePage.getByRole('button', { name: /share/i }).click()
@@ -33,7 +33,7 @@ test.describe.serial('Folder sharing', () => {
     // Sharing propagates asynchronously across instances; reload until it lands.
     await expect(async () => {
       await bobPage.reload()
-      await bobDrive.waitForFileVisible(FOLDER_NAME)
+      await bobDrive.row(FOLDER_NAME).waitVisible()
     }).toPass({ timeout: 30_000 })
   })
 })

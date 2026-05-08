@@ -23,7 +23,7 @@ test.describe('Upload & file viewer', () => {
     await copyFile(SAMPLE, fixturePath)
     try {
       await aliceDrive.uploadFiles(fixturePath)
-      await aliceDrive.waitForFileVisible(uniqueName)
+      await aliceDrive.row(uniqueName).waitVisible()
     } finally {
       await safeUnlink(fixturePath)
     }
@@ -45,8 +45,8 @@ test.describe('Upload & file viewer', () => {
       await queue.waitForOpen()
       await queue.waitForItem(path.basename(a))
       await queue.waitForItem(path.basename(b))
-      await aliceDrive.waitForFileVisible(path.basename(a))
-      await aliceDrive.waitForFileVisible(path.basename(b))
+      await aliceDrive.row(path.basename(a)).waitVisible()
+      await aliceDrive.row(path.basename(b)).waitVisible()
     } finally {
       await Promise.all([safeUnlink(a), safeUnlink(b)])
     }
@@ -64,11 +64,12 @@ test.describe('Upload & file viewer', () => {
     try {
       const fileName = path.basename(file)
       await aliceDrive.uploadFiles(file)
-      await aliceDrive.waitForFileVisible(fileName)
-      await aliceDrive.clickFile(fileName)
+      const row = aliceDrive.row(fileName)
+      await row.waitVisible()
+      await row.open()
       await viewer.waitForOpen()
       await viewer.close()
-      await expect(aliceDrive.getFileByName(fileName)).toBeVisible()
+      await expect(row.cell).toBeVisible()
     } finally {
       await safeUnlink(file)
     }

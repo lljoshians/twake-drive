@@ -17,7 +17,7 @@ test.describe('Folder CRUD', () => {
 
     const name = `Folder ${stamp()}`
     await aliceDrive.createFolder(name)
-    await expect(aliceDrive.getFileByName(name)).toBeVisible()
+    await expect(aliceDrive.row(name).cell).toBeVisible()
   })
 
   test('renames a folder via the row action menu', async ({
@@ -29,8 +29,8 @@ test.describe('Folder CRUD', () => {
     const original = `Old ${stamp()}`
     const renamed = `Renamed ${stamp()}`
     await aliceDrive.createFolder(original)
-    await aliceDrive.rename(original, renamed)
-    await expect(aliceDrive.getFileByName(renamed)).toBeVisible()
+    await aliceDrive.row(original).rename(renamed)
+    await expect(aliceDrive.row(renamed).cell).toBeVisible()
   })
 
   test('moves a folder into a sibling folder', async ({
@@ -43,11 +43,11 @@ test.describe('Folder CRUD', () => {
     const moved = `Movable ${stamp()}`
     await aliceDrive.createFolder(target)
     await aliceDrive.createFolder(moved)
-    await aliceDrive.moveTo(moved, target)
-    await aliceDrive.waitForFileHidden(moved)
-    await aliceDrive.clickFile(target)
+    await aliceDrive.row(moved).moveTo(target)
+    await aliceDrive.row(moved).waitHidden()
+    await aliceDrive.row(target).open()
     await alicePage.waitForURL(/\/folder\/[^/]+$/)
-    await expect(aliceDrive.getFileByName(moved)).toBeVisible()
+    await expect(aliceDrive.row(moved).cell).toBeVisible()
   })
 
   test('duplicates a file via the row action menu', async ({
@@ -64,12 +64,10 @@ test.describe('Folder CRUD', () => {
     await copyFile(FIXTURE, filePath)
     try {
       await aliceDrive.uploadFiles(filePath)
-      await aliceDrive.waitForFileVisible(fileName)
-      await aliceDrive.duplicate(fileName)
+      await aliceDrive.row(fileName).waitVisible()
+      await aliceDrive.row(fileName).duplicate()
       // cozy-drive auto-renames the copy ("dup-XXX (2).txt"); match by stem.
-      await expect(aliceDrive.getFilesMatching(stem)).toHaveCount(2, {
-        timeout: 10_000
-      })
+      await expect(aliceDrive.matching(stem)).toHaveCount(2, { timeout: 10_000 })
     } finally {
       await safeUnlink(filePath)
     }
@@ -85,15 +83,15 @@ test.describe('Folder CRUD', () => {
     const name = `Trashable ${stamp()}`
 
     await aliceDrive.createFolder(name)
-    await aliceDrive.sendToTrash(name)
-    await expect(aliceDrive.getFileByName(name)).toHaveCount(0)
+    await aliceDrive.row(name).sendToTrash()
+    await expect(aliceDrive.row(name).cell).toHaveCount(0)
 
     await sidebar.goToTrash()
     await alicePage.waitForURL(/\/trash/)
-    await aliceDrive.waitForFileVisible(name)
+    await aliceDrive.row(name).waitVisible()
 
-    await aliceDrive.restore(name)
+    await aliceDrive.row(name).restore()
     await alicePage.goto(ALICE_ROOT)
-    await expect(aliceDrive.getFileByName(name)).toBeVisible()
+    await expect(aliceDrive.row(name).cell).toBeVisible()
   })
 })

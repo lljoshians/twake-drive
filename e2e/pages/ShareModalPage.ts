@@ -17,7 +17,10 @@ export class ShareModalPage {
     const contactInput = this.dialog.getByRole('textbox').first()
     await contactInput.fill(email)
     // Either click a matching autocomplete suggestion (existing contact) or
-    // press Enter (free-form email input).
+    // press Enter (free-form email input). The suggestion listbox is
+    // portal'd outside the dialog so we have to match on the page; the
+    // hasText filter keeps the lookup scoped to options that actually
+    // contain the email we typed.
     const suggestion = this.page
       .getByRole('option')
       .filter({ hasText: email })

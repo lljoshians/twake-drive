@@ -19,10 +19,13 @@ const userPageFixture =
     use: (page: Page) => Promise<void>
   ): Promise<void> => {
     const ctx = await browser.newContext()
-    const page = await ctx.newPage()
-    await authenticate(page, user)
-    await use(page)
-    await ctx.close()
+    try {
+      const page = await ctx.newPage()
+      await authenticate(page, user)
+      await use(page)
+    } finally {
+      await ctx.close()
+    }
   }
 
 export const test = base.extend<AuthedFixtures>({
@@ -46,3 +49,7 @@ export const stamp = (): string =>
 /** Best-effort file deletion — swallows ENOENT so finally-blocks stay clean. */
 export const safeUnlink = (filePath: string): Promise<void> =>
   unlink(filePath).catch(() => undefined) as Promise<void>
+
+/** Escape regex metacharacters so a literal name can be used in a RegExp. */
+export const escapeRegExp = (text: string): string =>
+  text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

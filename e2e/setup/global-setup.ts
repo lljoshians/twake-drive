@@ -85,6 +85,11 @@ async function getSessionCookie(
 ): Promise<{ name: string; value: string }> {
   const { instance, passphrase } = user
   const loginPageRes = await fetch(`http://${instance}:80/auth/login`)
+  if (!loginPageRes.ok) {
+    throw new Error(
+      `GET /auth/login on ${instance} failed (${loginPageRes.status}): ${await loginPageRes.text()}`
+    )
+  }
   const params = parseLoginParams(await loginPageRes.text(), instance)
 
   // Two-step PBKDF2 hash matching cozy-stack's password-helpers.js:
@@ -111,7 +116,11 @@ async function getSessionCookie(
   const setCookies = res.headers.getSetCookie?.() ?? []
   const sess = setCookies.find(c => c.startsWith('sess-'))
   const m = sess?.match(/^([^=]+)=([^;]+)/)
-  if (!m) throw new Error(`Could not extract session cookie for ${instance}`)
+  if (!m) {
+    throw new Error(
+      `POST /auth/login on ${instance} did not return a session cookie (status ${res.status}): ${await res.text()}`
+    )
+  }
   return { name: m[1], value: m[2] }
 }
 

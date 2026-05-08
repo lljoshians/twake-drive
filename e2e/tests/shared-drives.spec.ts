@@ -71,7 +71,7 @@ test.describe.serial('Shared Drives', () => {
       await expect(bobPage.getByText(SHARED_DRIVE_NAME).first()).toBeVisible({
         timeout: 5_000
       })
-      await bobDrive.row(FOLDER_INSIDE).waitVisible()
+      await bobDrive.row(FOLDER_INSIDE).waitVisible({ timeout: 5_000 })
     }).toPass({ timeout: 30_000 })
   })
 })

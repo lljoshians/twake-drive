@@ -1,5 +1,7 @@
 import type { Page, Locator } from '@playwright/test'
 
+import { escapeRegExp } from '../helpers/fixtures'
+
 export class UploadQueuePage {
   private readonly page: Page
   private readonly queue: Locator
@@ -16,7 +18,7 @@ export class UploadQueuePage {
   getItemByName(name: string): Locator {
     return this.queue
       .getByTestId('upload-queue-item-name')
-      .filter({ hasText: name })
+      .filter({ hasText: new RegExp(`^${escapeRegExp(name)}$`) })
   }
 
   async waitForItem(name: string): Promise<void> {

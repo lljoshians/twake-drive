@@ -33,7 +33,7 @@ test.describe.serial('Folder sharing', () => {
     // Sharing propagates asynchronously across instances; reload until it lands.
     await expect(async () => {
       await bobPage.reload()
-      await bobDrive.row(FOLDER_NAME).waitVisible()
+      await bobDrive.row(FOLDER_NAME).waitVisible({ timeout: 3_000 })
     }).toPass({ timeout: 30_000 })
   })
 })

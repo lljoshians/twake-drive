@@ -7,7 +7,13 @@ async function stackFetch(
   options: RequestInit = {}
 ): Promise<Response> {
   const state = loadAuthState()
-  const { domain, cookieName, cookieValue } = state[user]
+  const entry = state[user]
+  if (!entry) {
+    throw new Error(
+      `Missing auth state for user '${user}' — globalSetup may not have run.`
+    )
+  }
+  const { domain, cookieName, cookieValue } = entry
 
   const res = await fetch(`http://${domain}:${STACK_PORT}${path}`, {
     ...options,

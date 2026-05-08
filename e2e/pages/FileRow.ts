@@ -1,12 +1,16 @@
 import type { Page, Locator } from '@playwright/test'
 
+import { escapeRegExp } from '../helpers/fixtures'
+
 interface ConfirmDialog {
   button: RegExp
   /** `required`: the dialog always shows up. `optional`: only confirm when
-   * a dialog is visible (some actions skip it when there's nothing to
-   * warn about). */
+   * a dialog appears within a short grace window (some actions skip the
+   * dialog when there's nothing to warn about). */
   wait: 'required' | 'optional'
 }
+
+const OPTIONAL_DIALOG_TIMEOUT = 2_000
 
 /**
  * Handle for a single row in the Drive file list. Returned from
@@ -16,18 +20,23 @@ interface ConfirmDialog {
  * Note: every menuitem regex below assumes the UI is in English.
  */
 export class FileRow {
+  private readonly anchored: RegExp
+
   constructor(
     private readonly page: Page,
     private readonly fileList: Locator,
     private readonly name: string
-  ) {}
+  ) {
+    this.anchored = new RegExp(`^${escapeRegExp(name)}$`)
+  }
 
   /** Locator for the row's filename cell — exposed so tests can assert
-   * visibility / count without going through a wrapper method. */
+   * visibility / count without going through a wrapper method. Anchored
+   * so similar names ("Folder 1" vs "Folder 12") don't collide. */
   get cell(): Locator {
     return this.fileList
       .getByTestId('fil-file-filename-and-ext')
-      .filter({ hasText: this.name })
+      .filter({ hasText: this.anchored })
   }
 
   private get rowEl(): Locator {
@@ -38,22 +47,21 @@ export class FileRow {
     )
   }
 
-  async waitVisible(): Promise<void> {
-    await this.cell.waitFor({ state: 'visible' })
+  async waitVisible(opts?: { timeout?: number }): Promise<void> {
+    await this.cell.waitFor({ state: 'visible', timeout: opts?.timeout })
   }
 
-  async waitHidden(): Promise<void> {
-    await this.cell.waitFor({ state: 'hidden' })
+  async waitHidden(opts?: { timeout?: number }): Promise<void> {
+    await this.cell.waitFor({ state: 'hidden', timeout: opts?.timeout })
   }
 
   /** cozy-drive desktop semantics: single-click selects, double-click
    * navigates / opens. See src/hooks/useOnLongPress/helpers.js handleClick. */
   async open(): Promise<void> {
-    await this.fileList
-      .getByRole('link')
-      .filter({ hasText: this.name })
-      .first()
-      .dblclick()
+    // The row's link includes the value of every column in its accessible
+    // name ("Foo — — —"), so we locate the row through the filename cell
+    // and dblclick whichever link sits inside.
+    await this.rowEl.getByRole('link').first().dblclick()
   }
 
   async openMenu(): Promise<Locator> {
@@ -68,11 +76,18 @@ export class FileRow {
     const menu = await this.openMenu()
     await menu.getByRole('menuitem', { name: menuItem }).click()
     if (!confirm) return
+
     const dialog = this.page.getByRole('dialog')
     if (confirm.wait === 'required') {
       await dialog.waitFor({ state: 'visible' })
-    } else if (!(await dialog.isVisible().catch(() => false))) {
-      return
+    } else {
+      // Brief grace period for the dialog to appear; if it doesn't, the
+      // action skipped the confirm and we're already done.
+      const appeared = await dialog
+        .waitFor({ state: 'visible', timeout: OPTIONAL_DIALOG_TIMEOUT })
+        .then(() => true)
+        .catch(() => false)
+      if (!appeared) return
     }
     await dialog.getByRole('button', { name: confirm.button }).click()
     await dialog.waitFor({ state: 'hidden' })
@@ -87,7 +102,7 @@ export class FileRow {
     await input.press('Enter')
     await this.fileList
       .getByTestId('fil-file-filename-and-ext')
-      .filter({ hasText: newName })
+      .filter({ hasText: new RegExp(`^${escapeRegExp(newName)}$`) })
       .waitFor({ state: 'visible' })
   }
 
@@ -97,7 +112,9 @@ export class FileRow {
     const dialog = this.page.getByRole('dialog')
     await dialog.waitFor({ state: 'visible' })
     await dialog
-      .getByRole('button', { name: new RegExp(`^${targetFolder}$`) })
+      .getByRole('button', {
+        name: new RegExp(`^${escapeRegExp(targetFolder)}$`)
+      })
       .first()
       .dblclick()
     await dialog.getByRole('button', { name: /^move$/i }).click()

@@ -4,6 +4,17 @@ export const COMPOSE_FILE = 'docker-compose.e2e.yml'
 export const STACK_HOST = 'localhost'
 export const STACK_PORT = 80
 export const STACK_URL = `http://${STACK_HOST}:${STACK_PORT}`
+export const ADMIN_PORT = 6060
+export const ADMIN_URL = `http://${STACK_HOST}:${ADMIN_PORT}`
+export const ADMIN_USER = 'admin'
+export const ADMIN_PASSPHRASE = 'cozy'
+
+// Tying both instances to the same (OrgID, OrgDomain) makes them count as
+// trusted contacts of each other for cozy-to-cozy sharing — combined with the
+// `auto_accept_trusted_contacts` context option, invitations no longer need
+// an SMTP delivery to be accepted.
+export const ORG_ID = 'twake-drive-e2e'
+export const ORG_DOMAIN = 'cozy.localhost'
 
 export interface User {
   instance: string

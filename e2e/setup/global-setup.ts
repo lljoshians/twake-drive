@@ -3,13 +3,42 @@ import { pbkdf2Sync } from 'crypto'
 
 import { saveAuthState } from '../helpers/auth'
 import {
+  ADMIN_PASSPHRASE,
+  ADMIN_URL,
+  ADMIN_USER,
   COMPOSE_FILE,
+  ORG_DOMAIN,
+  ORG_ID,
   STACK_URL,
   USERS,
   User,
   stackExec
 } from '../helpers/config'
 import { setFlags } from '../helpers/flags'
+
+const ADMIN_AUTH = `Basic ${Buffer.from(`${ADMIN_USER}:${ADMIN_PASSPHRASE}`).toString('base64')}`
+
+async function createInstance(user: User): Promise<void> {
+  const params = new URLSearchParams({
+    Domain: user.instance,
+    Email: user.email,
+    Locale: 'en',
+    Passphrase: user.passphrase,
+    ContextName: 'default',
+    OrgID: ORG_ID,
+    OrgDomain: ORG_DOMAIN
+  })
+  const res = await fetch(`${ADMIN_URL}/instances?${params}`, {
+    method: 'POST',
+    headers: { Authorization: ADMIN_AUTH, Accept: 'application/json' }
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(
+      `Failed to create instance ${user.instance} (${res.status}): ${body}`
+    )
+  }
+}
 
 const FEATURE_FLAGS = {
   'cozy.hide-sharing-cozy-to-cozy': true,
@@ -99,9 +128,7 @@ async function setupUser(
   user: User
 ): Promise<{ cookieName: string; cookieValue: string }> {
   console.log(`[e2e] Creating instance for ${label} (${user.instance})...`)
-  stackExec(
-    `instances add ${user.instance} --passphrase ${user.passphrase} --context-name test_default`
-  )
+  await createInstance(user)
 
   console.log(`[e2e] Installing Drive app for ${label}...`)
   stackExec(`apps install drive file:///app/drive --domain ${user.instance}`)

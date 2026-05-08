@@ -22,9 +22,9 @@ mail:
   noreply_name: Cozy Test
 
 contexts:
-  test_default:
+  default:
     sharing:
       auto_accept_trusted: true
+      auto_accept_trusted_contacts: true
       trusted_domains:
-        - localhost
         - cozy.localhost

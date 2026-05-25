@@ -37,7 +37,8 @@ const App: React.FC = () => {
     const splash = document.getElementById('initial-loader');
     if (splash) {
       splash.style.opacity = '0';
-      setTimeout(() => splash.remove(), 300);
+      // Bumped from 300ms to 500ms so the fade-out doesn't feel so abrupt
+      setTimeout(() => splash.remove(), 500);
     }
   }, []);
 
@@ -46,8 +47,9 @@ const App: React.FC = () => {
       <ConfigProvider
         theme={{
           token: {
-            colorPrimary: '#0F6FDE',
-            borderRadius: 6,
+            // Changed primary color to a slightly warmer blue that I prefer
+            colorPrimary: '#1A6FD4',
+            borderRadius: 8,
             fontFamily:
               "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
           },

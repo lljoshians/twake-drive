@@ -16,7 +16,8 @@
     "lint": "yarn workspaces run lint",
     "lint:fix": "yarn workspaces run lint:fix",
     "bundlemon": "bundlemon",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "clean": "rm -rf node_modules tdrive/frontend/node_modules tdrive/backend/node/node_modules"
   },
   "devDependencies": {
     "bundlemon": "^2.0.0",
